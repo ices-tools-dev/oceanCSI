@@ -113,12 +113,18 @@ stations$ClusterID <- match(comb, unique(comb))
 samples <- fread(sampleFile, sep = "\t", na.strings = "NULL", stringsAsFactors = FALSE, header = TRUE)
 
 ## In order to save the current state of data, run following code
-# save(samples, stations, searegionlist, file = "oceancsidata.RData")
+save(samples, stations, file = "oceancsidata.RData")
 
 # StationSamples ----------------------------------------------------------
 
 ## In order to (re)load the data processed before, run following code. Data should have been saved in an earlier session
 load("oceancsidata.RData")
+
+# add average depths from EMODnet bathymetry produced with "getSoundingsFromEmodnet.R"
+station_emodnetDepth <- fread("station_emodnetDepth.csv")[,list(StationID, avgDepth)]
+setkey(station_emodnetDepth, StationID)
+setkey(stations, StationID)
+stations <- stations[station_emodnetDepth]
 
 # merge stations and samples
 setkey(stations, StationID)
@@ -126,9 +132,13 @@ setkey(samples, StationID, SampleID)
 stationSamples <- stations[samples]
 
 # free memory
-rm(stations, samples)
+rm(stations, samples, station_emodnetDepth)
 
-save(stationSamples, searegionlist, file = "oceancsidata2.RData")
+save(stationSamples, file = "oceancsidata2.RData")
+
+#==== Start from here if no new station or sample information is to be incorporated ======================
+
+load("oceancsidata2.RData")
 
 # Prepare for plotting
 source("plotfunctions.r")
@@ -618,8 +628,7 @@ saveEuropeTrendMap("Chlorophyll")
 #   Aggregation Method: mean of lower quartile by station and cluster per year
 #   per class (<4, 4-6, >6) trend maps
 
-# Filter stations rows and columns
-DO_samples_summer <- stationSamples[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
+DO_samples_summer_old <- stationSamples[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
                                       (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
                                       Depth <= Sounding &
                                       case_when(
@@ -628,6 +637,40 @@ DO_samples_summer <- stationSamples[(!is.na(Oxygen) | ! is.na(HydrogenSulphide))
                                       Year > 1989 &
                                       Month > 6 & Month < 11,
                                     list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, latitude_center, Sounding, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, Oxygen, HydrogenSulphide)]
+
+# "old depth" (sounding) results in 887109 records
+
+# Filter stations rows and columns
+DO_samples_summer <- stationSamples[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
+                                      (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
+                                      Depth <= avgDepth &
+                                      case_when(
+                                        avgDepth < 100 ~ Depth >= avgDepth - 20,
+                                        avgDepth >= 100 ~ Depth >= avgDepth - 50) &
+                                      Year > 1989 &
+                                      Month > 6 & Month < 11,
+                                    list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, latitude_center, avgDepth, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, Oxygen, HydrogenSulphide)]
+
+# "new depth" (avgDepth: from EMODnet bathmetry) results in 980369 records
+
+DO_samples_summer2 <- stationSamples[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
+                                      (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
+                                      Depth <= avgDepth &
+                                      case_when(
+                                        avgDepth < 100 ~ Depth >= avgDepth - 20,
+                                        avgDepth >= 100 & avgDepth < 500 ~ Depth >= avgDepth - 50,
+                                        avgDepth >= 500 ~ Depth >= avgDepth - 200) &
+                                      Year > 1989 &
+                                      Month > 6 & Month < 11,
+                                    list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, latitude_center, avgDepth, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, Oxygen, HydrogenSulphide)]
+
+# modified new depth (higher tolerance when avgDepth > 500 m): 1206743 records
+
+
+
+DO_samples_summer <- DO_samples_summer2
+
+hist(DO_samples_summer$Oxygen)
 
 # Check number of samples per searegion
 # DO_samples_summer %>% group_by(SeaRegionID) %>% summarize(timeRange = paste(range(Year)[1], "-", range(Year)[2]), nrOfSamples = n())
@@ -650,7 +693,7 @@ mean25perc <- DO_samples_summer %>%
   summarize(AvgOxygen = mean(Oxygen),
             AvgLatitude = mean(latitude_center),
             AvgLongitude = mean(longitude_center),
-            AvgSounding = mean(Sounding),
+            AvgavgDepth = mean(avgDepth),
             AvgDepth = mean(Depth)) %>%
   as.data.table()
 
