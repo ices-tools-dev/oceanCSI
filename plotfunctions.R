@@ -21,6 +21,8 @@ searegions <- sf::st_read(searegionFile)
 # create bounding box for plotting on European scale
 bboxEurope <- st_bbox(searegions)
 
+rm(searegions)
+
 # create bounding boxes for the regions
 # bboxRegions = data.frame(  ID = as.integer(),  xmin = as.numeric(),  xmax = as.numeric(),  ymin = as.numeric(),  ymax = as.numeric())
 # for(ii in seq(1:length(rownames(searegions)))){
@@ -37,6 +39,7 @@ bboxRegions <- read.csv2("bboxregions.csv", header = T, stringsAsFactors = F)
 
 data("countriesLow")
 world <- fortify(countriesLow) 
+rm(countriesLow)
 
 # function for plotting status per parameter
 plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, invJet = TRUE, limits) {
@@ -178,5 +181,4 @@ plotRegionStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, 
 
     
     }
-
 
