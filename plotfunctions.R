@@ -6,7 +6,7 @@ ipak <- function(pkg) {
   if (length(new.pkg)) install.packages(new.pkg, dependencies = TRUE)
   sapply(pkg, require, character.only = TRUE)
 }
-packages <- c("sf", "data.table", "dplyr", "rworldmap", "xts", "Kendall", "ggplot2", "rlist")
+packages <- c("sf", "data.table", "dplyr", "rworldmap", "xts", "Kendall", "ggplot2", "rlist", "modifiedmk")
 ipak(packages)
 
 
@@ -71,7 +71,7 @@ plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, 
   statusplot + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "darkgrey", color = "black") +
     geom_point(shape = 21, aes_string(fill = parameterValue), color = "white", size = 2) +
     coord_quickmap(xlim = xxlim, ylim = yylim) +
-    ggtitle(paste("Status of ", parameterValue, "2013 - 2017")) +
+    ggtitle(paste("Status of", parameterValue, "2013 - 2017")) +
     scale_fill_gradientn(colours  = colorscale(7), guide = "colourbar", limits = limits) +
     theme_bw() + 
     theme(
@@ -91,27 +91,28 @@ saveEuropeStatusMap <- function(parameter, width = 10, height = 8) {
 }
 
 
-plotKendallClasses <- function(plotdata, parameterValue){
+plotKendallClasses <- function(plotdata, parameterValue, year){
   
   # define color scale for trendplotting
-  cols <- c("increasing" = "red", "no trend" = "grey", "decreasing" = "green")
-  if(parameterValue == "Oxygen") cols <- c("decreasing" = "red", "no trend" = "grey", "increasing" = "green")
+  cols <- c("Increasing" = "red", "No trend" = "grey", "Decreasing" = "green")
+  if(parameterValue == "Oxygen") cols <- c("Decreasing" = "red", "No trend" = "grey", "Increasing" = "green")
   
   # geographical limits  
   xxlim = c(bboxEurope[1], bboxEurope[3])
   yylim = c(bboxEurope[2], bboxEurope[4])
   
-  if(parameterValue != "Oxygen") setorderv(plotdata, "trend", 1)
-  if(parameterValue == "Oxygen") setorderv(plotdata, "trend", 1)
+  if(parameterValue != "Oxygen") setorderv(plotdata, "Trend", 1)
+  if(parameterValue == "Oxygen") setorderv(plotdata, "Trend", 1)
   
   ggplot() +
     geom_polygon(data = world, aes(long, lat, group = group), fill = "darkgrey", color = "black") +
-    geom_point(data = plotdata, aes(AvgLongitude, AvgLatitude, fill = trend, group = ClusterID), shape = 21, color = "white", size = 1.7) +
+    geom_point(data = plotdata, aes(AvgLongitude, AvgLatitude, fill = Trend, group = ClusterID), 
+               shape = 21, color = "white", size = 1.7) +
     scale_fill_manual(values = cols) +
     coord_quickmap(xlim = xxlim, ylim = yylim) +
-    ggtitle(paste("Trends in ", parameterValue, 
-                  ifelse(exists("prettyClassNames"),prettyClassNames,""), 
-                  "1990 - 2017")) +
+    ggtitle(paste("Trends in", parameterValue 
+                  , ifelse(exists("prettyClassNames"),prettyClassNames[cc],"")
+                  ,year)) +
     theme_bw() + 
     theme(
       text = element_text(size = 15),
