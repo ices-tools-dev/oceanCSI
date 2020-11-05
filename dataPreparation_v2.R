@@ -14,7 +14,7 @@ memory.limit(size = 16000)
 
 coastlineFile <- "Input/Country_Europe_Extended.shp"
 #coastlineFile <- "Input/EEA_Coastline_20170228.shp"
-searegionFile <- "Input/EEA_SeaRegion_20180831.shp"
+#searegionFile <- "Input/EEA_SeaRegion_20180831.shp"
 #searegionFile <- "Input/MSFD_Marine_Subregions_draft_EU_EEZ_20130614.shp"
 stationFile <- "Input/OceanCSI_Station_20201030.txt"
 sampleFile <- "Input/OceanCSI_Sample_20201030.txt"
@@ -43,7 +43,7 @@ coastline_Within20km <- sf::st_buffer(coastline, 20000)
 # SeaRegions -------------------------------------------------------------------
 
 # Read shapefile
-searegions <- sf::st_read(searegionFile)
+#searegions <- sf::st_read(searegionFile)
 
 # Check if geometries is valid
 #sf::st_is_valid(searegions)
@@ -52,7 +52,7 @@ searegions <- sf::st_read(searegionFile)
 #searegions <- sf::st_buffer(searegions, 0.0)
 
 # Transform projection into UTM33N
-searegions <- sf::st_transform(searegions, crs = 32633)
+#searegions <- sf::st_transform(searegions, crs = 32633)
 
 # Stations ---------------------------------------------------------------------
 

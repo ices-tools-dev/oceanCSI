@@ -71,7 +71,7 @@ plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, 
   statusplot + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "darkgrey", color = "black") +
     geom_point(shape = 21, aes_string(fill = parameterValue), color = "white", size = 2) +
     coord_quickmap(xlim = xxlim, ylim = yylim) +
-    ggtitle(paste("Status of", parameterValue, "2013 - 2017")) +
+    ggtitle(paste("Status of", parameterValue, Year)) +
     scale_fill_gradientn(colours  = colorscale(7), guide = "colourbar", limits = limits) +
     theme_bw() + 
     theme(
@@ -85,13 +85,13 @@ plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, 
 
 
 # Around ggsave for saving status parameter plots 
-saveEuropeStatusMap <- function(parameter, width = 10, height = 8) {
-  ggsave(filename = file.path("output", paste0(parameter, "_status", ".png")),
+saveEuropeStatusMap <- function(parameter, Year, region, width = 10, height = 8) {
+  ggsave(filename = file.path("output", paste0(parameter,"_", Year,"_", region, "_status", ".png")),
          height = height, width = width)
 }
 
 
-plotKendallClasses <- function(plotdata, parameterValue, year){
+plotKendallClasses <- function(plotdata, parameterValue, Year){
   
   # define color scale for trendplotting
   cols <- c("Increasing" = "red", "No trend" = "grey", "Decreasing" = "green")
@@ -112,7 +112,7 @@ plotKendallClasses <- function(plotdata, parameterValue, year){
     coord_quickmap(xlim = xxlim, ylim = yylim) +
     ggtitle(paste("Trends in", parameterValue 
                   , ifelse(exists("prettyClassNames"),prettyClassNames[cc],"")
-                  ,year)) +
+                  ,Year)) +
     theme_bw() + 
     theme(
       text = element_text(size = 15),
@@ -124,8 +124,8 @@ plotKendallClasses <- function(plotdata, parameterValue, year){
 }
 
 # Around ggsave for saving status parameter plots 
-saveEuropeTrendMap <- function(parameter, width = 10, height = 8) {
-  ggsave(filename = file.path("output", paste0(parameter, "_trend", ".png")),
+saveEuropeTrendMap <- function(parameter, Year, width = 10, height = 8) {
+  ggsave(filename = file.path("output", paste0(parameter, "_", Year, "_trend", ".png")),
          height = height, width = width)
 }
 

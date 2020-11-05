@@ -20,19 +20,25 @@ DO_samples <- stationSamples_oxy[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
 # Records left: +/- 18.000.000
 rm(stationSamples_oxy)
 
-# ID	  Region	          SubRegion
-# 1	    Baltic Sea	      Baltic Sea
-# 2	    North-east        Atlantic Ocean	Greater North Sea	incl. the Kattegat and the English Channel
-# 3	    North-east        Atlantic Ocean	Celtic Seas
-# 4	    North-east        Atlantic Ocean	Bay of Biscay and the Iberian Coast
-# 5	    North-east        Atlantic Ocean	Macaronesia
-# 6	    Mediterranean Sea	Western Mediterranean Sea
-# 7   	Mediterranean Sea	Adriatic Sea
-# 8	    Mediterranean Sea	Ionian Sea and the Central Mediterranean Sea
-# 9	    Mediterranean Sea	Aegean-Levantine Sea
-# 10  	Black Sea	        Black Sea	
-# 11  	Black Sea	        Sea of Marmara	
-# 12	  Black Sea	        Sea of Azov
+#ID	Code	Description						envDomain	zoneType	spZoneType	Shape_Length	Shape_Area
+#1	BAL	Baltic							            water	marineRegion	MSFDregion		860.717834064261	61.1764774372317
+#2	BLA	Black Sea - sea of Azov					water	marineRegion	MSFDregion_part		46.8036300233879	4.64210461222669
+#3	BLM	Black Sea - sea of Marmara				water	marineRegion	MSFDregion_part		16.6122037987906	1.2499968958581
+#4	AMA	Macaronesia						                                              water	marineRegion	MSFDsubregion		129.858146721819	403.800809039279
+#5	MAD	Adriatic Sea						water	marineRegion	MSFDsubregion		100.416051967312	15.3706242561274
+#6	MAL	Aegean-Levantine Sea					water	marineRegion	MSFDsubregion		222.518364756116	74.7396360823146
+#7	ABI	Bay of Biscay and the Iberian Coast			water	marineRegion	MSFDsubregion		105.591710393974	88.0366900404256
+#8	ANS	Greater North Sea, incl. Kattegat + English Channel	water	marineRegion	MSFDsubregion		464.95134457305		95.2014264637056
+#9	MIC	Ionian Sea and the Central Mediterranean Sea		water	marineRegion	MSFDsubregion		98.7583461236747	76.5746705808825
+#10	MWE	Western Mediterranean Sea				water	marineRegion	MSFDsubregion		147.767877527397	88.633689073479
+#11	BAR	Barents Sea						water	marineRegion	nonMSFDsea		741.733713175722	656.236971936288
+#12	ICE	Iceland Sea						water	marineRegion	nonMSFDsea		152.984613720431	142.344800339171
+#13	NOR	Norwegian Sea						water	marineRegion	nonMSFDsea		577.843816458465	220.728020578548
+#14	WHI	White Sea						water	marineRegion	nonMSFDsea		52.7603238847586	17.8195239452825
+#15	ACS	Celtic Seas						water	marineRegion	MSFDsubregion		358.016500849447	136.003803526643
+#16	ACSo	Celtic Seas - overlapping submissions to UNCLOS 	water	marineRegion	MSFDsubregion_part	26.2033727812915	22.9006291957611
+#17	ATL	North East Atlantic Ocean				water	marineRegion	MSFDregion_part		1094.91157549377	1541.80056043198
+#18	BLK	Black Sea						water	marineRegion	MSFDregion_part		77.0331675675044	46.8110900817822
 
 # DissolvedOxygen (Summer/Autumn) -----------------------------------------------------
 #   Parameters: Dissolved Oxygen
@@ -147,31 +153,28 @@ mean25perc_raw <- DO_samples_summer_raw %>%
   as.data.table()
 
 # plot average status for last 5 years 
-wk21_raw_old <- mean25perc_raw[Year > 1989 | Year <= 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-wk21_raw <- mean25perc_raw[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+wk21_raw_old <- mean25perc_raw[Year > 1989 | Year <= 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21_raw_old, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", invJet = T, limits = "auto")
+               parameterValue = "Oxygen", Year = "1989-2000", invJet = T, limits = "auto")
+
+wk21_raw <- mean25perc_raw[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21_raw, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", invJet = T, limits = "auto")
+               parameterValue = "Oxygen", Year = "2013-2017", invJet = T, limits = "auto")
 
-# Black Sea and Mediterranean Sea ----------------------------------------------------------
+wk21_raw2 <- mean25perc_raw[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
+plotStatusMaps(bboxEurope, data = wk21_raw2, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2000-2017", invJet = T, limits = "auto")
+
+# Black Sea ------------------------------------------------------------------------
 # Select these regions based on seaRegion number (see above)
-seaRegionSelection1 <- c(10,11,12) # Black Sea
-seaRegionSelection2 <- c(6,7,8,9) # Mediterranean Sea
-seaRegionSelection3 <- c(6,7,8,9,10,11,12)
+blackSea <- c(2,3,18) # Black Sea
 
-# First check the raw data for
-# Black Sea 
 DO_samples_BS <- DO_samples_summer_raw %>% 
-  filter(SeaRegionID %in% c(seaRegionSelection1))
-
-plotStatusMaps(bboxEurope, data = DO_samples_BS, xlong = "Longitude", ylat = "Latitude", 
-               parameterValue = "Oxygen", 
-               invJet = T, 
-               limits = "auto")
+  filter(SeaRegionID %in% c(blackSea)) %>%
+  as.data.table()
 
 hist(DO_samples_BS$Depth)
 hist(DO_samples_BS$avgDepth)
@@ -180,10 +183,9 @@ hist(DO_samples_BS$Year)
 
 # Calculate 25 percentile per cluster and year
 Q25all_BS <- DO_samples_BS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
-Q25allBS <- DO_samples_BS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
 
 # Calculate mean of lower quartile 
-mean25perc_BS<- DO_samples_BS %>% 
+mean25perc_BS <- DO_samples_BS %>% 
   left_join(Q25all_BS) %>% 
   filter(Oxygen <= q25) %>%
   group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
@@ -195,92 +197,68 @@ mean25perc_BS<- DO_samples_BS %>%
   as.data.table()
 
 # plot average status for last 5 years 
-wk21 <- mean25perc[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+wk21_BS <- mean25perc_BS[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
-plotStatusMaps(bboxEurope, data = wk21, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", 
+plotStatusMaps(bboxEurope, data = wk21_BS, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2013-2017",
                invJet = T, 
                limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2013-2017", region = "blackSea")
 
-# Plot the frequence of differences
-ggplot(DO_samples_BS,aes(x=Depth, y=avgDepth)) +
-  ggtitle("Frequency of depth differences") +
-  xlab("Sample depth (m)") +
-  ylab("Depth at location (m)") +
-  stat_bin_hex(colour="white", na.rm=TRUE) +
-  scale_fill_gradientn(colours=c("purple","green"), 
-                       trans = "log",
-                       name = "Frequency",
-                       #breaks = c(1,20,400,2000,10000,80000),
-                       na.value=NA)
+# For last 14 years.
+wk21_BS_06 <- mean25perc_BS[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
-check_outliers1a <- DO_samples_BS %>%
-  filter(diff_depth > -2000 | diff_depth < 2000 ) %>%
-  filter(avgDepth < 100)
+plotStatusMaps(bboxEurope, data = wk21_BS_06, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2006-2017",
+               invJet = T, 
+               limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2006-2017", region = "blackSea")
 
-hist(check_outliers1a$avgDepth)
+# Mediterranean Sea ------------------------------------------------------------------------
+# Select these regions based on seaRegion number (see above)
+medSea <- c(5,6,9,10) # Mediterranean Sea
 
-# Plot the frequence of differences
-ggplot(check_outliers1a,aes(x=Depth, y=avgDepth)) +
-  ggtitle("Frequency of depth differences") +
-  xlab("Sample depth (m)") +
-  ylab("Depth at location (m)") +
-  stat_bin_hex(colour="white", na.rm=TRUE) +
-  scale_fill_gradientn(colours=c("purple","green"), 
-                       #trans = "log",
-                       name = "Frequency",
-                       #breaks = c(400,2000,10000),
-                       na.value=NA)
+DO_samples_MS <- DO_samples_summer_raw %>% 
+  filter(SeaRegionID %in% c(medSea)) %>%
+  as.data.table()
 
-check_outliers1b <- DO_samples_BS %>%
-  filter(diff_depth > -2000 | diff_depth < 2000 )  
+hist(DO_samples_MS$Depth)
+hist(DO_samples_MS$avgDepth)
+hist(DO_samples_MS$diff_depth)
+hist(DO_samples_MS$Year)
 
-hist(check_outliers1b$avgDepth)
+# Calculate 25 percentile per cluster and year
+Q25all_MS <- DO_samples_MS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
 
-# Plot the frequence of differences
-ggplot(check_outliers1b,aes(x=Depth, y=avgDepth)) +
-  ggtitle("Frequency of depth differences") +
-  xlab("Sample depth (m)") +
-  ylab("Depth at location (m)") +
-  stat_bin_hex(colour="white", na.rm=TRUE) +
-  scale_fill_gradientn(colours=c("purple","green"), 
-                       #trans = "log",
-                       name = "Frequency",
-                       #breaks = c(400,2000,10000),
-                       na.value=NA)
+# Calculate mean of lower quartile 
+mean25perc_MS <- DO_samples_MS %>% 
+  left_join(Q25all_MS) %>% 
+  filter(Oxygen <= q25) %>%
+  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
+  summarize(AvgOxygen = mean(Oxygen),
+            AvgLatitude = mean(latitude_center),
+            AvgLongitude = mean(longitude_center),
+            AvgavgDepth = mean(avgDepth),
+            AvgDepth = mean(Depth)) %>%
+  as.data.table()
 
-check_outliers1c <- DO_samples_BS %>%
-  filter(diff_depth > -2000 | diff_depth < 2000 )  
+# plot average status for last 5 years 
+wk21_MS <- mean25perc_MS[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
-hist(check_outliers1c$avgDepth)
+plotStatusMaps(bboxEurope, data = wk21_MS, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2013-2017",
+               invJet = T, 
+               limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2013_2017", region = "MedSea")
 
-# Plot the frequence of differences
-ggplot(check_outliers1c,aes(x=Depth, y=avgDepth)) +
-  ggtitle("Frequency of depth differences") +
-  xlab("Sample depth (m)") +
-  ylab("Depth at location (m)") +
-  stat_bin_hex(colour="white", na.rm=TRUE) +
-  scale_fill_gradientn(colours=c("purple","green"), 
-                       #trans = "log",
-                       name = "Frequency",
-                       #breaks = c(400,2000,10000),
-                       na.value=NA)
-check_outliers2 <- DO_samples_BS %>%
-  filter(diff_depth < -2000 | diff_depth > 2000 )  
+# For last 14 years.
+wk21_MS_06 <- mean25perc_MS[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
-hist(check_outliers2$avgDepth)
-
-# Plot the frequence of differences
-ggplot(check_outliers2,aes(x=Depth, y=avgDepth)) +
-  ggtitle("Frequency of depth differences") +
-  xlab("Sample depth (m)") +
-  ylab("Depth at location (m)") +
-  stat_bin_hex(colour="white", na.rm=TRUE) +
-  scale_fill_gradientn(colours=c("purple","green"), 
-                       #trans = "log",
-                       name = "Frequency",
-                       #breaks = c(400,2000,10000),
-                       na.value=NA)
+plotStatusMaps(bboxEurope, data = wk21_MS_06, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2006-2017",
+               invJet = T, 
+               limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2006-2017", region = "MedSea")
 
 # Preparation Trend analysis ----------------------------------------------------------
 
@@ -291,12 +269,13 @@ Q25all <- DO_samples_summer[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Y
 mean25perc <- DO_samples_summer %>% 
   left_join(Q25all) %>% 
   filter(Oxygen <= q25) %>%
-  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
+  group_by(Year, ClusterID, SeaRegionID) %>%
   summarize(AvgOxygen = mean(Oxygen),
             AvgLatitude = mean(latitude_center),
             AvgLongitude = mean(longitude_center),
             AvgavgDepth = mean(avgDepth),
             AvgDepth = mean(Depth)) %>%
+  #distinct(Year,ClusterID,SeaRegionID, .keep_all = TRUE) %>%
   as.data.table()
 
 # check value distribution
@@ -311,17 +290,24 @@ fwrite(mean25perc, "output/status_dissolvedoxygen.csv")
 wk21 <- mean25perc[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", 
+               parameterValue = "Oxygen", Year = "2013-2017",
                invJet = T, 
                limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen")
 
+wk21a <- mean25perc[Year > 1999, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+
+plotStatusMaps(bboxEurope, data = wk21a, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", Year = "2013-2017",
+               invJet = T, 
+               limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2000_2017", region = "")
 
 # trend analysis using Kendall test for each oxygen class
 classes <- c("O2_4 mg_l", "4_O2_6 mg_l", "O2_6 mg_l")
 prettyClassNames <- c("O2 < 4 mg/l", "4 < O2 < 6 mg/l", "O2 > 6 mg/l")
 
-ID_class <- wk21 %>% mutate(
+ID_class <- wk21 %>% 
+  mutate(
   class = case_when(
     Oxygen < 4 ~ 1,
     Oxygen >= 4 & Oxygen < 6 ~ 2,
@@ -335,11 +321,50 @@ setkey(ID_class, ClusterID)
 
 mean25perc2 <- mean25perc[ID_class]
 
-# Trend analysis I ----------------------------------------------------------
+# Check number of years per cluster for Black Sea and MedSea -------------------------------------
+yearcrit <- mean25perc[Year > 1989, unique(ClusterID)]
+clusterSel <- mean25perc2[ClusterID %in% yearcrit][
+  , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
+    , .(NrYears = .N), by = .(ClusterID, AvgLatitude, AvgLongitude, SeaRegionID)]
+wkt <- mean25perc[ClusterID %in% clusterSel$ClusterID]
+hist(clusterSel$NrYears)
+BlackMedSeaClusSel <- clusterSel[SeaRegionID %in% c(blackSea,medSea)]
+hist(BlackMedSeaClusSel$NrYears)
 
+setkey(clusterSel, ClusterID)
+setkey(wkt, ClusterID)
+
+mean25perc_sel2 <- wkt[clusterSel]
+mean25perc_sel3 <- mean25perc_sel2 %>% distinct(ClusterID, .keep_all = TRUE) %>% as.data.frame()
+
+hist(mean25perc_sel3$Year)
+
+mean25perc_sel_BMS <- mean25perc_sel2[SeaRegionID %in% c(blackSea,medSea)]
+hist(mean25perc_sel_BMS$Year)
+
+xxlim = c(bboxEurope[1], bboxEurope[3])
+yylim = c(bboxEurope[2], bboxEurope[4])
+
+ggplot() +
+  geom_polygon(data = world, aes(long, lat, group = group), fill = "darkgrey", color = "black") +
+  geom_point(data = mean25perc_sel3, aes(i.AvgLongitude, i.AvgLatitude, fill = NrYears, group = ClusterID), 
+             shape = 21, color = "white", size = 1.7) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  coord_quickmap(xlim = xxlim, ylim = yylim) +
+  ggtitle(paste("Number of consecutive years")) +
+  theme_bw() + 
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right",
+    axis.line = element_blank(),
+    axis.ticks = element_blank())
+
+# Trend analysis I ----------------------------------------------------------
 for(cc in seq(1:length(classes))){
   
-  yearcriteria <- mean25perc2[Year>2006 & class == cc, unique(ClusterID)]
+  yearcriteria <- mean25perc2[Year>1989 & class == cc, unique(ClusterID)]
   
   clusterSelection <- mean25perc[ClusterID %in% yearcriteria][
     , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
@@ -371,9 +396,9 @@ for(cc in seq(1:length(classes))){
   #pretname <- prettyClassNames[cc]
   
   plotKendallClasses(plotdata = KendallResult.clustered,
-                     parameterValue = "Oxygen", year ="(2006-2017)")
-    saveEuropeTrendMap(paste("Oxygen", classes[cc]))
-  
+                     parameterValue = "Oxygen", Year ="(1989-2017)")
+    saveEuropeTrendMap(paste("Oxygen", classes[cc]), Year = "1989-2017")
+
 }
 
 # Trend analysis II ----------------------------------------------------------
