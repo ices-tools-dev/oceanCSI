@@ -13,7 +13,9 @@ if(!dir.exists("output")){dir.create("output")}
 # reduce data quantity
 DO_samples <- stationSamples_oxy[(!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
                                (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4),
-                             list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, latitude_center, Sounding, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, Oxygen, HydrogenSulphide, Sounding, avgDepth)]
+                             list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, 
+                                  latitude_center, Sounding, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature,
+                                  Salinity, Oxygen, HydrogenSulphide, Sounding, avgDepth)]
 
 # Records left: +/- 18.000.000
 rm(stationSamples_oxy)
@@ -122,8 +124,37 @@ DO_samples_summer <- DO_samples_summer %>%
   mutate(diff_depth = avgDepth - Depth) %>% 
   as.data.table()
 
-hist(DO_samples_summer_raw$diff_depth)
 hist(DO_samples_summer$diff_depth)
+
+
+# Check raw data --------------------------------------------------------------------------
+
+hist(DO_samples_summer_raw$diff_depth)
+
+# Calculate 25 percentile per cluster and year
+Q25all_raw <- DO_samples_summer_raw[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
+
+# Calculate mean of lower quartile 
+mean25perc_raw <- DO_samples_summer_raw %>% 
+  left_join(Q25all_raw) %>% 
+  filter(Oxygen <= q25) %>%
+  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
+  summarize(AvgOxygen = mean(Oxygen),
+            AvgLatitude = mean(latitude_center),
+            AvgLongitude = mean(longitude_center),
+            AvgavgDepth = mean(avgDepth),
+            AvgDepth = mean(Depth)) %>%
+  as.data.table()
+
+# plot average status for last 5 years 
+wk21_raw_old <- mean25perc_raw[Year > 1989 | Year <= 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+wk21_raw <- mean25perc_raw[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+
+plotStatusMaps(bboxEurope, data = wk21_raw_old, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", invJet = T, limits = "auto")
+
+plotStatusMaps(bboxEurope, data = wk21_raw, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", invJet = T, limits = "auto")
 
 # Black Sea and Mediterranean Sea ----------------------------------------------------------
 
@@ -137,10 +168,39 @@ seaRegionSelection3 <- c(6,7,8,9,10,11,12)
 DO_samples_BS <- DO_samples_summer_raw %>% 
   filter(SeaRegionID %in% c(seaRegionSelection1))
 
+plotStatusMaps(bboxEurope, data = DO_samples_BS, xlong = "Longitude", ylat = "Latitude", 
+               parameterValue = "Oxygen", 
+               invJet = T, 
+               limits = "auto")
+
 hist(DO_samples_BS$Depth)
 hist(DO_samples_BS$avgDepth)
 hist(DO_samples_BS$diff_depth)
 hist(DO_samples_BS$Year)
+
+# Calculate 25 percentile per cluster and year
+Q25all_BS <- DO_samples_BS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
+Q25allBS <- DO_samples_BS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
+
+# Calculate mean of lower quartile 
+mean25perc_BS<- DO_samples_BS %>% 
+  left_join(Q25all_BS) %>% 
+  filter(Oxygen <= q25) %>%
+  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
+  summarize(AvgOxygen = mean(Oxygen),
+            AvgLatitude = mean(latitude_center),
+            AvgLongitude = mean(longitude_center),
+            AvgavgDepth = mean(avgDepth),
+            AvgDepth = mean(Depth)) %>%
+  as.data.table()
+
+# plot average status for last 5 years 
+wk21 <- mean25perc[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+
+plotStatusMaps(bboxEurope, data = wk21, xlong = "AvgLongitude", ylat = "AvgLatitude", 
+               parameterValue = "Oxygen", 
+               invJet = T, 
+               limits = "auto")
 
 # Plot the frequence of differences
 ggplot(DO_samples_BS,aes(x=Depth, y=avgDepth)) +
@@ -154,13 +214,64 @@ ggplot(DO_samples_BS,aes(x=Depth, y=avgDepth)) +
                        #breaks = c(1,20,400,2000,10000,80000),
                        na.value=NA)
 
-check_outliers <- DO_samples_BS %>%
-  filter(diff_depth < -2000 | diff_depth > 2000 )  
+check_outliers1a <- DO_samples_BS %>%
+  filter(diff_depth > -2000 | diff_depth < 2000 ) %>%
+  filter(avgDepth < 100)
 
-hist(check_outliers$avgDepth)
+hist(check_outliers1a$avgDepth)
 
 # Plot the frequence of differences
-ggplot(check_outliers,aes(x=Depth, y=avgDepth)) +
+ggplot(check_outliers1a,aes(x=Depth, y=avgDepth)) +
+  ggtitle("Frequency of depth differences") +
+  xlab("Sample depth (m)") +
+  ylab("Depth at location (m)") +
+  stat_bin_hex(colour="white", na.rm=TRUE) +
+  scale_fill_gradientn(colours=c("purple","green"), 
+                       #trans = "log",
+                       name = "Frequency",
+                       #breaks = c(400,2000,10000),
+                       na.value=NA)
+
+check_outliers1b <- DO_samples_BS %>%
+  filter(diff_depth > -2000 | diff_depth < 2000 )  
+
+hist(check_outliers1b$avgDepth)
+
+# Plot the frequence of differences
+ggplot(check_outliers1b,aes(x=Depth, y=avgDepth)) +
+  ggtitle("Frequency of depth differences") +
+  xlab("Sample depth (m)") +
+  ylab("Depth at location (m)") +
+  stat_bin_hex(colour="white", na.rm=TRUE) +
+  scale_fill_gradientn(colours=c("purple","green"), 
+                       #trans = "log",
+                       name = "Frequency",
+                       #breaks = c(400,2000,10000),
+                       na.value=NA)
+
+check_outliers1c <- DO_samples_BS %>%
+  filter(diff_depth > -2000 | diff_depth < 2000 )  
+
+hist(check_outliers1c$avgDepth)
+
+# Plot the frequence of differences
+ggplot(check_outliers1c,aes(x=Depth, y=avgDepth)) +
+  ggtitle("Frequency of depth differences") +
+  xlab("Sample depth (m)") +
+  ylab("Depth at location (m)") +
+  stat_bin_hex(colour="white", na.rm=TRUE) +
+  scale_fill_gradientn(colours=c("purple","green"), 
+                       #trans = "log",
+                       name = "Frequency",
+                       #breaks = c(400,2000,10000),
+                       na.value=NA)
+check_outliers2 <- DO_samples_BS %>%
+  filter(diff_depth < -2000 | diff_depth > 2000 )  
+
+hist(check_outliers2$avgDepth)
+
+# Plot the frequence of differences
+ggplot(check_outliers2,aes(x=Depth, y=avgDepth)) +
   ggtitle("Frequency of depth differences") +
   xlab("Sample depth (m)") +
   ylab("Depth at location (m)") +
