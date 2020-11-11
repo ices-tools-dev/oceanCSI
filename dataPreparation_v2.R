@@ -107,15 +107,9 @@ stations$longitude_center <- stations$iX/stations$rK
 comb <- with(stations, paste(iX, iY))
 stations$ClusterID <- match(comb, unique(comb))
 
-# Samples ----------------------------------------------------------------------
-
-# Read samples
-samples <- fread(sampleFile, sep = "\t", na.strings = "NULL", stringsAsFactors = FALSE, header = TRUE)
-
+# Load station depth
 # Read average depths from EMODnet bathymetry produced with "getSoundingsFromEmodnet.R"
 station_emodnetDepth <- fread("station_emodnetDepth.csv")[,list(StationID, avgDepth)]
-
-# StationSamples nutrients ----------------------------------------------------------
 
 setkey(station_emodnetDepth, StationID)
 setkey(stations, StationID)
@@ -125,11 +119,22 @@ stations <- stations[station_emodnetDepth]
 stations2 <- stations %>%
   select(-rK, -iX, -iY, -m, -Cruise, -Station)
 
+rm(stations, station_emodnetDepth)
+
+#save(stations2, file = "stations2.RData")
+
+# Samples ----------------------------------------------------------------------
+
+# Read samples
+samples <- fread(sampleFile, sep = "\t", na.strings = "NULL", stringsAsFactors = FALSE, header = TRUE)
+
+# StationSamples nutrients ----------------------------------------------------------
+
 # Split samples in two (here for nutrientIndicators)
 samples_nut <- samples %>%
   select(-DepthQ, -TemperatureQ, -SalinityQ, -Oxygen, -OxygenQ, -HydrogenSulphide, -HydrogenSulphideQ)
 
-rm(stations, samples, station_emodnetDepth)
+rm(samples)
 
 # merge stations and samples
 setkey(stations2, StationID)
@@ -173,7 +178,7 @@ setkey(samples_oxy, StationID, SampleID)
 stationSamples_oxy <- stations2[samples_oxy]
 
 # free memory
-rm(stations2, samples_oxy)
+rm(samples_oxy)
 
 # Extra cleaning for NA values 9999 and -999
 
@@ -202,5 +207,66 @@ for(j in seq_along(stationSamples_oxy)){
 ## In order to save the current state of data, run following code
 save(stationSamples_oxy, file = "oceancsidata_oxygen.RData")
 
+rm(stationSamples_oxy)
 
+# StationSamples Black Sea and Mediterranean Sea ----------------------------------------------------------
+# Read samples
+samples <- fread(sampleFile, sep = "\t", na.strings = "NULL", stringsAsFactors = FALSE, header = TRUE)
 
+# Select columns needed for stations DF
+# Filter out Black Sea and Mediterranean
+stations_bsms <- stations2 %>%
+  filter(SeaRegionID %in% c(2,3,5,6,9,10,18)) %>%
+  as.data.table()
+
+rm(stations2)
+
+# Select couple of columns and filter out Q 3 and 4
+samples_Q <- samples[(OxygenQ != 3 & OxygenQ != 4) &
+                     (PhosphateQ != 3 & PhosphateQ != 4) &
+                     (TotalPhosphorusQ != 3 & TotalPhosphorusQ != 4) &
+                     (NitrateQ != 3 & NitrateQ != 4) &
+                     (NitriteQ != 3 & NitriteQ != 4) &
+                     (AmmoniumQ != 3 & AmmoniumQ != 4) &
+                     (TotalNitrogenQ != 3 & TotalNitrogenQ != 4) &
+                     (HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
+                     (ChlorophyllQ != 3 & ChlorophyllQ != 4)]
+
+samples_Q <- samples_Q %>%
+  select(-DepthQ, -TemperatureQ, -SalinityQ, -OxygenQ, -PhosphateQ, -TotalPhosphorusQ, -NitrateQ, 
+         -NitriteQ, -AmmoniumQ, -TotalNitrogenQ, -HydrogenSulphideQ, -ChlorophyllQ) %>%
+  as.data.table()
+
+rm(samples)
+
+# merge stations and samples
+setkey(stations_bsms, StationID)
+setkey(samples_Q, StationID, SampleID)
+stationSamples_bsms <- stations_bsms[samples_Q]
+
+rm(samples_Q, stations_bsms)
+
+# Extra cleaning for NA values 9999 and -999
+# apparently, there are "-999 and "9999" values. replace with NA
+# or rather "-999.0001
+
+for(j in seq_along(stationSamples_bsms)){
+  set(stationSamples_bsms, i=which(stationSamples_bsms[[j]]==9999), j=j, value=NA)
+}
+
+for(j in seq_along(stationSamples_bsms)){
+  set(stationSamples_bsms, i=which(stationSamples_bsms[[j]]==-999.0001), j=j, value=NA)
+}
+
+## In order to save the current state of data, run following code
+save(stationSamples_bsms, file = "oceancsidata_Q.RData")
+
+# Do check for samples 
+sampling_check <- stationSamples_bsms %>%
+  select(SampleID, Temperature, Salinity, Oxygen, Phosphate, TotalPhosphorus, Nitrate, Nitrite, Ammonium,        
+         TotalNitrogen, HydrogenSulphide, Chlorophyll) %>%
+  as.data.table()
+
+rm(stationSamples_bsms)
+
+save(sampling_check, file = "oceancsidata_sample_check.RData")
