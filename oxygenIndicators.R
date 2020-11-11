@@ -297,7 +297,7 @@ plotStatusMaps(bboxEurope, data = wk21, xlong = "AvgLongitude", ylat = "AvgLatit
 wk21a <- mean25perc[Year > 1999, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21a, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2013-2017",
+               parameterValue = "Oxygen", Year = "2000-2017",
                invJet = T, 
                limits = "auto")
 saveEuropeStatusMap(parameter = "Oxygen", Year = "2000_2017", region = "")
@@ -322,7 +322,7 @@ setkey(ID_class, ClusterID)
 mean25perc2 <- mean25perc[ID_class]
 
 # Check number of years per cluster for Black Sea and MedSea -------------------------------------
-yearcrit <- mean25perc[Year > 1989, unique(ClusterID)]
+yearcrit <- mean25perc[Year > 2006, unique(ClusterID)]
 clusterSel <- mean25perc2[ClusterID %in% yearcrit][
   , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
     , .(NrYears = .N), by = .(ClusterID, AvgLatitude, AvgLongitude, SeaRegionID)]
@@ -342,16 +342,20 @@ hist(mean25perc_sel3$Year)
 mean25perc_sel_BMS <- mean25perc_sel2[SeaRegionID %in% c(blackSea,medSea)]
 hist(mean25perc_sel_BMS$Year)
 
+mean25perc_sel4 <- mean25perc_sel3 %>% mutate(`Consecutive years` = 
+                  case_when(NrYears < 5 ~ "< 5 years", NrYears >= 5 ~ "> 5 years")) %>% 
+                  as.data.frame()
+
 xxlim = c(bboxEurope[1], bboxEurope[3])
 yylim = c(bboxEurope[2], bboxEurope[4])
 
 ggplot() +
   geom_polygon(data = world, aes(long, lat, group = group), fill = "darkgrey", color = "black") +
-  geom_point(data = mean25perc_sel3, aes(i.AvgLongitude, i.AvgLatitude, fill = NrYears, group = ClusterID), 
-             shape = 21, color = "white", size = 1.7) +
-  scale_fill_gradient(low = "blue", high = "red") +
+  geom_point(data = mean25perc_sel4, aes(i.AvgLongitude, i.AvgLatitude, 
+        color = `Consecutive years`, group = ClusterID), size = 1) +
+  #scale_fill_gradient(low = "blue", high = "red") +
   coord_quickmap(xlim = xxlim, ylim = yylim) +
-  ggtitle(paste("Number of consecutive years")) +
+  ggtitle(paste("Number of consecutive years after 2000")) +
   theme_bw() + 
   theme(
     text = element_text(size = 15),
@@ -361,10 +365,12 @@ ggplot() +
     axis.line = element_blank(),
     axis.ticks = element_blank())
 
+ggsave("Number of consecutive years after 2000.png")
+
 # Trend analysis I ----------------------------------------------------------
 for(cc in seq(1:length(classes))){
   
-  yearcriteria <- mean25perc2[Year>1989 & class == cc, unique(ClusterID)]
+  yearcriteria <- mean25perc2[Year>2006 & class == cc, unique(ClusterID)]
   
   clusterSelection <- mean25perc[ClusterID %in% yearcriteria][
     , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][

@@ -210,7 +210,8 @@ save(stationSamples_oxy, file = "oceancsidata_oxygen.RData")
 rm(stationSamples_oxy)
 
 # StationSamples Black Sea and Mediterranean Sea ----------------------------------------------------------
-# Read samples
+# Read samples (and if necessary stations2 (this includes emodnetdepths))
+#load(file = "stations2.RData")
 samples <- fread(sampleFile, sep = "\t", na.strings = "NULL", stringsAsFactors = FALSE, header = TRUE)
 
 # Select columns needed for stations DF
@@ -246,6 +247,9 @@ stationSamples_bsms <- stations_bsms[samples_Q]
 
 rm(samples_Q, stations_bsms)
 
+# Filter out NA's 
+stationSamples_bsms <- stationSamples_bsms %>% filter(SeaRegionID > 0)
+
 # Extra cleaning for NA values 9999 and -999
 # apparently, there are "-999 and "9999" values. replace with NA
 # or rather "-999.0001
@@ -263,7 +267,7 @@ save(stationSamples_bsms, file = "oceancsidata_Q.RData")
 
 # Do check for samples 
 sampling_check <- stationSamples_bsms %>%
-  select(SampleID, Temperature, Salinity, Oxygen, Phosphate, TotalPhosphorus, Nitrate, Nitrite, Ammonium,        
+  select(SampleID, Year, Latitude, Longitude, avgDepth, Depth, Temperature, Salinity, Oxygen, Phosphate, TotalPhosphorus, Nitrate, Nitrite, Ammonium,        
          TotalNitrogen, HydrogenSulphide, Chlorophyll) %>%
   as.data.table()
 
