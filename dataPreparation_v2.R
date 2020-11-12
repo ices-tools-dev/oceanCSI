@@ -98,6 +98,8 @@ stations <- sf::st_set_geometry(stations, NULL)
 # The procedure does not totally prevent errorneous aggregation of data belonging to stations close to each other or errorneous
 # breakup of time series into fragments due to small shifts in position, but reduces the problem considerably.
 #station$m <- 20
+#stations <- stations %>%
+#  select(-m, -iY, -latitude_center, -rK, -iX, -longitude_center, -ClusterID)
 stations$m <- ifelse(stations$Within20km, 80, 20)
 stations$iY <- round(stations$Latitude*stations$m)
 stations$latitude_center <- stations$iY/stations$m
@@ -107,6 +109,7 @@ stations$longitude_center <- stations$iX/stations$rK
 comb <- with(stations, paste(iX, iY))
 stations$ClusterID <- match(comb, unique(comb))
 
+unique(stations$ClusterID)
 # Load station depth
 # Read average depths from EMODnet bathymetry produced with "getSoundingsFromEmodnet.R"
 station_emodnetDepth <- fread("station_emodnetDepth.csv")[,list(StationID, avgDepth)]
@@ -122,6 +125,7 @@ stations2 <- stations %>%
 rm(stations, station_emodnetDepth)
 
 #save(stations2, file = "stations2.RData")
+#load("stations2.RData")
 
 # Samples ----------------------------------------------------------------------
 
@@ -243,7 +247,8 @@ rm(samples)
 # merge stations and samples
 setkey(stations_bsms, StationID)
 setkey(samples_Q, StationID, SampleID)
-stationSamples_bsms <- stations_bsms[samples_Q]
+stationSamples_bsms <- samples_Q[stations_bsms]
+#stationSamples_bsms <- stations_bsms[samples_Q]
 
 rm(samples_Q, stations_bsms)
 
@@ -267,7 +272,7 @@ save(stationSamples_bsms, file = "oceancsidata_Q.RData")
 
 # Do check for samples 
 sampling_check <- stationSamples_bsms %>%
-  select(SampleID, Year, Latitude, Longitude, avgDepth, Depth, Temperature, Salinity, Oxygen, Phosphate, TotalPhosphorus, Nitrate, Nitrite, Ammonium,        
+  select(StationID, SampleID, Year, Latitude, Longitude, latitude_center, longitude_center,avgDepth, Depth, Temperature, Salinity, Oxygen, Phosphate, TotalPhosphorus, Nitrate, Nitrite, Ammonium,        
          TotalNitrogen, HydrogenSulphide, Chlorophyll) %>%
   as.data.table()
 

@@ -47,62 +47,6 @@ rm(stationSamples_oxy)
 #   Aggregation Method: mean of lower quartile by station and cluster per year
 #   per class (<4, 4-6, >6) trend maps
 
-# Raw dataset (no selections of depths)
-DO_samples_summer_raw <- DO_samples[
-  #SeaRegionID == seaRegionSelection &
-  # (!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
-  # (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
-  Depth <= Sounding &
-    Year > 1989 &
-    Month > 6 & Month < 11,
-  list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, 
-       Latitude, longitude_center, latitude_center, avgDepth, SeaRegionID, 
-       ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, 
-       Oxygen, HydrogenSulphide)]
-
-DO_samples_summer_raw <- DO_samples_summer_raw %>%
-  mutate(Oxygen = case_when(
-    !is.na(Oxygen) ~ Oxygen/0.7,  # convert ml/l to mg/l  http://www.ices.dk/marine-data/tools/pages/unit-conversions.aspx <http://www.ices.dk/marine-data/tools/pages/unit-conversions.aspx> 
-    is.na(Oxygen) & !is.na(HydrogenSulphide) ~ -HydrogenSulphide*0.022391/0.7 # convert umol/l via ml/l to mg/l
-  )) %>%
-  mutate(diff_depth = avgDepth - Depth) %>% 
-  as.data.table()
-
-# Leaves us with +/- 4.000.000 records
-
-# Some old methods (using soundings)
-#DO_samples_summer_old <- DO_samples[
-#SeaRegionID == seaRegionSelection &
-# (!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
-# (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
-#  Depth <= Sounding &
-#    case_when(
-#      Sounding < 100 ~ Depth >= Sounding - 20,
-#      Sounding >= 100 ~ Depth >= Sounding - 50) &
-#    Year > 1989 &
-#    Month > 6 & Month < 11,
-#  list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, 
-#       latitude_center, Sounding, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, 
-#       Temperature, Salinity, Oxygen, HydrogenSulphide)]
-
-# "old depth" (sounding) results in 840827 records
-
-# Use new depth from EMODnet bathymetry
-#DO_samples_summer_old2 <- DO_samples[
-# (!is.na(Oxygen) | ! is.na(HydrogenSulphide)) &
-#   (OxygenQ != 3 & OxygenQ != 4 | HydrogenSulphideQ != 3 & HydrogenSulphideQ != 4) &
-#    Depth <= avgDepth &
-#    case_when(
-#      avgDepth < 100 ~ Depth >= avgDepth - 20,
-#      avgDepth >= 100 ~ Depth >= avgDepth - 50) &
-#    Year > 1989 &
-#    Month > 6 & Month < 11,
-#  list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, Latitude, longitude_center, 
-#       latitude_center, avgDepth, SeaRegionID, ClusterID, DataSourceID, UTM_E, UTM_N, Depth, 
-#       Temperature, Salinity, Oxygen, HydrogenSulphide)]
-
-# "new depth" (avgDepth: from EMODnet bathmetry) results in 639326 records
-
 DO_samples_summer <- DO_samples[
   Depth <= avgDepth &
     case_when(
@@ -132,133 +76,6 @@ DO_samples_summer <- DO_samples_summer %>%
 
 hist(DO_samples_summer$diff_depth)
 
-
-# Check raw data --------------------------------------------------------------------------
-
-hist(DO_samples_summer_raw$diff_depth)
-
-# Calculate 25 percentile per cluster and year
-Q25all_raw <- DO_samples_summer_raw[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
-
-# Calculate mean of lower quartile 
-mean25perc_raw <- DO_samples_summer_raw %>% 
-  left_join(Q25all_raw) %>% 
-  filter(Oxygen <= q25) %>%
-  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
-  summarize(AvgOxygen = mean(Oxygen),
-            AvgLatitude = mean(latitude_center),
-            AvgLongitude = mean(longitude_center),
-            AvgavgDepth = mean(avgDepth),
-            AvgDepth = mean(Depth)) %>%
-  as.data.table()
-
-# plot average status for last 5 years 
-wk21_raw_old <- mean25perc_raw[Year > 1989 | Year <= 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_raw_old, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "1989-2000", invJet = T, limits = "auto")
-
-wk21_raw <- mean25perc_raw[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_raw, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2013-2017", invJet = T, limits = "auto")
-
-wk21_raw2 <- mean25perc_raw[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_raw2, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2000-2017", invJet = T, limits = "auto")
-
-# Black Sea ------------------------------------------------------------------------
-# Select these regions based on seaRegion number (see above)
-blackSea <- c(2,3,18) # Black Sea
-
-DO_samples_BS <- DO_samples_summer_raw %>% 
-  filter(SeaRegionID %in% c(blackSea)) %>%
-  as.data.table()
-
-hist(DO_samples_BS$Depth)
-hist(DO_samples_BS$avgDepth)
-hist(DO_samples_BS$diff_depth)
-hist(DO_samples_BS$Year)
-
-# Calculate 25 percentile per cluster and year
-Q25all_BS <- DO_samples_BS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
-
-# Calculate mean of lower quartile 
-mean25perc_BS <- DO_samples_BS %>% 
-  left_join(Q25all_BS) %>% 
-  filter(Oxygen <= q25) %>%
-  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
-  summarize(AvgOxygen = mean(Oxygen),
-            AvgLatitude = mean(latitude_center),
-            AvgLongitude = mean(longitude_center),
-            AvgavgDepth = mean(avgDepth),
-            AvgDepth = mean(Depth)) %>%
-  as.data.table()
-
-# plot average status for last 5 years 
-wk21_BS <- mean25perc_BS[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_BS, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2013-2017",
-               invJet = T, 
-               limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen", Year = "2013-2017", region = "blackSea")
-
-# For last 14 years.
-wk21_BS_06 <- mean25perc_BS[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_BS_06, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2006-2017",
-               invJet = T, 
-               limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen", Year = "2006-2017", region = "blackSea")
-
-# Mediterranean Sea ------------------------------------------------------------------------
-# Select these regions based on seaRegion number (see above)
-medSea <- c(5,6,9,10) # Mediterranean Sea
-
-DO_samples_MS <- DO_samples_summer_raw %>% 
-  filter(SeaRegionID %in% c(medSea)) %>%
-  as.data.table()
-
-hist(DO_samples_MS$Depth)
-hist(DO_samples_MS$avgDepth)
-hist(DO_samples_MS$diff_depth)
-hist(DO_samples_MS$Year)
-
-# Calculate 25 percentile per cluster and year
-Q25all_MS <- DO_samples_MS[, .(q25 = quantile(.SD, 0.25, na.rm = T)), by = c("Year", "ClusterID", "SeaRegionID")]
-
-# Calculate mean of lower quartile 
-mean25perc_MS <- DO_samples_MS %>% 
-  left_join(Q25all_MS) %>% 
-  filter(Oxygen <= q25) %>%
-  group_by(Year, ClusterID, SeaRegionID, UTM_E, UTM_N) %>%
-  summarize(AvgOxygen = mean(Oxygen),
-            AvgLatitude = mean(latitude_center),
-            AvgLongitude = mean(longitude_center),
-            AvgavgDepth = mean(avgDepth),
-            AvgDepth = mean(Depth)) %>%
-  as.data.table()
-
-# plot average status for last 5 years 
-wk21_MS <- mean25perc_MS[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_MS, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2013-2017",
-               invJet = T, 
-               limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen", Year = "2013_2017", region = "MedSea")
-
-# For last 14 years.
-wk21_MS_06 <- mean25perc_MS[Year > 2000, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
-
-plotStatusMaps(bboxEurope, data = wk21_MS_06, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2006-2017",
-               invJet = T, 
-               limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen", Year = "2006-2017", region = "MedSea")
 
 # Preparation Trend analysis ----------------------------------------------------------
 
@@ -290,23 +107,24 @@ fwrite(mean25perc, "output/status_dissolvedoxygen.csv")
 wk21 <- mean25perc[Year > 2012, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2013-2017",
+               parameterValue = "Oxygen", unit = " (mg/L)", Year = "2013-2019",
                invJet = T, 
                limits = "auto")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "2013_2019", region = "")
 
-wk21a <- mean25perc[Year > 1999, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
+wk21a <- mean25perc[Year > 1988, list(Oxygen = mean(AvgOxygen)), list(ClusterID, AvgLongitude, AvgLatitude)]
 
 plotStatusMaps(bboxEurope, data = wk21a, xlong = "AvgLongitude", ylat = "AvgLatitude", 
-               parameterValue = "Oxygen", Year = "2000-2017",
+               parameterValue = "Oxygen", unit = " (mg/L)", Year = "1989-2019",
                invJet = T, 
                limits = "auto")
-saveEuropeStatusMap(parameter = "Oxygen", Year = "2000_2017", region = "")
+saveEuropeStatusMap(parameter = "Oxygen", Year = "1989_2019", region = "")
 
 # trend analysis using Kendall test for each oxygen class
 classes <- c("O2_4 mg_l", "4_O2_6 mg_l", "O2_6 mg_l")
 prettyClassNames <- c("O2 < 4 mg/l", "4 < O2 < 6 mg/l", "O2 > 6 mg/l")
 
-ID_class <- wk21 %>% 
+ID_class <- wk21a %>% 
   mutate(
   class = case_when(
     Oxygen < 4 ~ 1,
@@ -321,62 +139,23 @@ setkey(ID_class, ClusterID)
 
 mean25perc2 <- mean25perc[ID_class]
 
-# Check number of years per cluster for Black Sea and MedSea -------------------------------------
-yearcrit <- mean25perc[Year > 2006, unique(ClusterID)]
-clusterSel <- mean25perc2[ClusterID %in% yearcrit][
-  , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
-    , .(NrYears = .N), by = .(ClusterID, AvgLatitude, AvgLongitude, SeaRegionID)]
-wkt <- mean25perc[ClusterID %in% clusterSel$ClusterID]
-hist(clusterSel$NrYears)
-BlackMedSeaClusSel <- clusterSel[SeaRegionID %in% c(blackSea,medSea)]
-hist(BlackMedSeaClusSel$NrYears)
-
-setkey(clusterSel, ClusterID)
-setkey(wkt, ClusterID)
-
-mean25perc_sel2 <- wkt[clusterSel]
-mean25perc_sel3 <- mean25perc_sel2 %>% distinct(ClusterID, .keep_all = TRUE) %>% as.data.frame()
-
-hist(mean25perc_sel3$Year)
-
-mean25perc_sel_BMS <- mean25perc_sel2[SeaRegionID %in% c(blackSea,medSea)]
-hist(mean25perc_sel_BMS$Year)
-
-mean25perc_sel4 <- mean25perc_sel3 %>% mutate(`Consecutive years` = 
-                  case_when(NrYears < 5 ~ "< 5 years", NrYears >= 5 ~ "> 5 years")) %>% 
-                  as.data.frame()
-
-xxlim = c(bboxEurope[1], bboxEurope[3])
-yylim = c(bboxEurope[2], bboxEurope[4])
-
-ggplot() +
-  geom_polygon(data = world, aes(long, lat, group = group), fill = "darkgrey", color = "black") +
-  geom_point(data = mean25perc_sel4, aes(i.AvgLongitude, i.AvgLatitude, 
-        color = `Consecutive years`, group = ClusterID), size = 1) +
-  #scale_fill_gradient(low = "blue", high = "red") +
-  coord_quickmap(xlim = xxlim, ylim = yylim) +
-  ggtitle(paste("Number of consecutive years after 2000")) +
-  theme_bw() + 
-  theme(
-    text = element_text(size = 15),
-    axis.title = element_blank(),
-    axis.text = element_blank(),
-    legend.position = "right",
-    axis.line = element_blank(),
-    axis.ticks = element_blank())
-
-ggsave("Number of consecutive years after 2000.png")
-
 # Trend analysis I ----------------------------------------------------------
+yr = 2006
+
 for(cc in seq(1:length(classes))){
   
-  yearcriteria <- mean25perc2[Year>2006 & class == cc, unique(ClusterID)]
+  yearcriteria <- mean25perc2[Year>yr & class == cc, unique(ClusterID)]
   
   clusterSelection <- mean25perc[ClusterID %in% yearcriteria][
     , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
       , .(NrYears = .N), by = .(ClusterID, AvgLatitude, AvgLongitude, SeaRegionID)][NrYears >=5]
   hist(clusterSelection$NrYears)
   wk22 <- mean25perc[ClusterID %in% clusterSelection$ClusterID]
+  countSR <- wk22 %>%
+    distinct(ClusterID, .keep_all = TRUE) %>%
+    group_by(SeaRegionID) %>%
+    summarise(count=n())
+  fwrite(countSR, paste0("output/Count_SR/count_SR", classes[cc], "_ends_after_", yr, ".csv"))
   l <- wk22 %>% as.data.frame() %>% split(.$ClusterID) 
   timeserieslist <- lapply(
     l, function(x) xts::xts(x[,"AvgOxygen"], order.by = as.Date(as.character(x[,"Year"]),format = "%Y")))
@@ -397,56 +176,16 @@ for(cc in seq(1:length(classes))){
                                           levels =  c("No trend", "Decreasing", "Increasing"))
   
   
-  fwrite(KendallResult.clustered, paste0("output/trend_dissolvedoxygen", classes[cc], ".csv"))
+  fwrite(KendallResult.clustered, paste0("output/trend_dissolvedoxygen", classes[cc], "_end_after_", yr, ".csv"))
   
   #pretname <- prettyClassNames[cc]
   
   plotKendallClasses(plotdata = KendallResult.clustered,
-                     parameterValue = "Oxygen", Year ="(1989-2017)")
-    saveEuropeTrendMap(paste("Oxygen", classes[cc]), Year = "1989-2017")
+                     parameterValue = "Oxygen", Year ="(1989-2019)", end_trend = yr)
+    saveEuropeTrendMap(paste("Oxygen", classes[cc]), Year = "1989-2019", yr)
 
 }
 
-# Trend analysis II ----------------------------------------------------------
-# BCPW: Hamed (2009) Bias Corrected Prewhitening (modifiedmk package)
-#require(modifiedmk)
 
-for(cc in seq(1:length(classes))){
-  
-  yearcriteria <- mean25perc2[Year>2006 & class == cc, unique(ClusterID)]
-  
-  clusterSelection <- mean25perc[ClusterID %in% yearcriteria][
-    , list(NrClustersPerYear = .N, AvgLatitude = mean(AvgLatitude), AvgLongitude = mean(AvgLongitude)), by = .(ClusterID, Year, SeaRegionID)][
-      , .(NrYears = .N), by = .(ClusterID, AvgLatitude, AvgLongitude, SeaRegionID)][NrYears >=5]
-  hist(clusterSelection$NrYears)
-  wk22 <- mean25perc[ClusterID %in% clusterSelection$ClusterID]
-  l <- wk22 %>% as.data.frame() %>% split(.$ClusterID) 
-  timeserieslist <- lapply(
-    l, function(x) xts::xts(x[,"AvgOxygen"], order.by = as.Date(as.character(x[,"Year"]),format = "%Y")))
-  
-  df.timeserieslist <- as.data.frame((matrix(unlist(list.flatten(timeserieslist)), byrow = F)))
-  
-  # Apply BCPW
-  BCPWResult <- lapply(timeserieslist, function(x) bcpw(as.vector(x)))
-  df.BCPWResult <- as.data.frame((matrix(unlist(list.flatten(BCPWResult)), ncol  = 7, byrow = T)))
-  names(df.BCPWResult) <- c("z-val", "pw_sl", "sl", "p-val", "S", "vars", "tau")
-  df.BCPWResult$ClusterID <- as.integer(names(BCPWResult))
-  BCPWResult.clustered <- df.BCPWResult %>% 
-    left_join(clusterSelection, by = c('ClusterID' = 'ClusterID')) %>%
-    filter(!is.na(S)) %>%
-    mutate(Trend = case_when(
-      .$`p-val` <= 0.05 & .$S < 0 ~ "Decreasing",
-      .$`p-val` <= 0.05 & .$S > 0 ~ "Increasing",
-      .$`p-val` <= 0.05 & .$S == 0 ~ "No trend",
-      .$`p-val` > 0.05 ~ "No trend")
-    ) %>%
-    mutate(Trend = as.factor(Trend))
-  BCPWResult.clustered$Trend <- factor(BCPWResult.clustered$Trend, 
-                                       levels =  c("No trend", "Decreasing", "Increasing"))
-  
-  fwrite(KendallResult.clustered, paste0("output/trend_dissolvedoxygen_pw", classes[cc], ".csv"))
-  
-  plotKendallClasses(plotdata = BCPWResult.clustered, 
-                     parameterValue = "Oxygen", year = "(2006-2017)")
-  saveEuropeTrendMap(paste("PW_Oxygen", classes[cc]))
-}
+
+

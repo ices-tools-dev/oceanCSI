@@ -17,11 +17,14 @@ searegionFile <- "Input/EEA_SeaRegion_20180831.shp"
 
 # Read shapefile
 searegions <- sf::st_read(searegionFile)
+searegionBSMS <- searegions %>%
+  filter(Region %in% c("Black Sea", "Mediterranean Sea"))
 
 # create bounding box for plotting on European scale
 bboxEurope <- st_bbox(searegions)
+bboxBSMS <- st_bbox(searegionBSMS)
 
-rm(searegions)
+rm(searegions, searegionBSMS)
 
 # create bounding boxes for the regions
 # bboxRegions = data.frame(  ID = as.integer(),  xmin = as.numeric(),  xmax = as.numeric(),  ymin = as.numeric(),  ymax = as.numeric())
@@ -42,7 +45,7 @@ world <- fortify(countriesLow)
 rm(countriesLow)
 
 # function for plotting status per parameter
-plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, invJet = TRUE, limits) {
+plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, unit, Year, invJet = TRUE, limits) {
 
   # create color scales for plotting, depending on whether good status is associated with high or low values
   if(!invJet){
@@ -71,7 +74,8 @@ plotStatusMaps <- function(bboxEurope, data, xlong, ylat, parameterValue, Year, 
   statusplot + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "darkgrey", color = "black") +
     geom_point(shape = 21, aes_string(fill = parameterValue), color = "white", size = 2) +
     coord_quickmap(xlim = xxlim, ylim = yylim) +
-    ggtitle(paste("Status of", parameterValue, Year)) +
+    ggtitle(paste0(parameterValue, " concentration (",Year,")")) +
+    guides(fill = guide_colorbar(title = paste0(parameterValue, unit))) + 
     scale_fill_gradientn(colours  = colorscale(7), guide = "colourbar", limits = limits) +
     theme_bw() + 
     theme(
@@ -91,7 +95,7 @@ saveEuropeStatusMap <- function(parameter, Year, region, width = 10, height = 8)
 }
 
 
-plotKendallClasses <- function(plotdata, parameterValue, Year){
+plotKendallClasses <- function(plotdata, parameterValue, Year, end_trend){
   
   # define color scale for trendplotting
   cols <- c("Increasing" = "red", "No trend" = "grey", "Decreasing" = "green")
@@ -110,9 +114,8 @@ plotKendallClasses <- function(plotdata, parameterValue, Year){
                shape = 21, color = "white", size = 1.7) +
     scale_fill_manual(values = cols) +
     coord_quickmap(xlim = xxlim, ylim = yylim) +
-    ggtitle(paste("Trends in", parameterValue 
-                  , ifelse(exists("prettyClassNames"),prettyClassNames[cc],"")
-                  ,Year)) +
+    labs(title = (paste("Trends in", parameterValue ,Year)),
+         subtitle = (paste0((ifelse(exists("prettyClassNames"),prettyClassNames[cc],"")), ": trend ends after ", end_trend))) +
     theme_bw() + 
     theme(
       text = element_text(size = 15),
@@ -124,8 +127,8 @@ plotKendallClasses <- function(plotdata, parameterValue, Year){
 }
 
 # Around ggsave for saving status parameter plots 
-saveEuropeTrendMap <- function(parameter, Year, width = 10, height = 8) {
-  ggsave(filename = file.path("output", paste0(parameter, "_", Year, "_trend", ".png")),
+saveEuropeTrendMap <- function(parameter, Year, yr, width = 10, height = 8) {
+  ggsave(filename = file.path("output", paste0(parameter, "_", Year, "_trend_ends_after_", yr, ".png")),
          height = height, width = width)
 }
 
