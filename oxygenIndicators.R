@@ -1,3 +1,5 @@
+require(data.table)
+require(tidyverse)
 
 rm(list = ls())
 
@@ -47,6 +49,28 @@ rm(stationSamples_oxy)
 #   Aggregation Method: mean of lower quartile by station and cluster per year
 #   per class (<4, 4-6, >6) trend maps
 
+#=== preparation for map plotting ==================
+searegionFile <- "Input/EEA_SeaRegion_20180831.shp"
+
+# Read shapefile
+searegions <- sf::st_read(searegionFile)
+searegionBSMS <- searegions %>%
+  filter(Region %in% c("Black Sea", "Mediterranean Sea"))
+
+# create bounding box for plotting on European scale
+bboxEurope <- st_bbox(searegions)
+bboxBSMS <- st_bbox(searegionBSMS)
+rm(searegions, searegionBSMS)
+xxlim = c(bboxEurope[1], bboxEurope[3])
+yylim = c(bboxEurope[2], bboxEurope[4])
+
+require(rworldmap)
+data("countriesLow")
+world <- fortify(countriesLow) 
+rm(countriesLow)
+#==================================================
+
+#== sample selection based on EMODnet depth (avgDepth) =============
 DO_samples_summer <- DO_samples[
   Depth <= avgDepth &
     case_when(
@@ -57,8 +81,74 @@ DO_samples_summer <- DO_samples[
     Month > 6 & Month < 11,
   list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, 
        Latitude, longitude_center, latitude_center, avgDepth, SeaRegionID, 
-       ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Temperature, Salinity, 
+       ClusterID, DataSourceID, UTM_E, UTM_N, Depth, Sounding, Temperature, Salinity, 
        Oxygen, HydrogenSulphide)]
+
+#== sample selection based on Sounding ====================
+DO_samples_summer_old <- DO_samples[
+  Depth <= Sounding &
+    case_when(
+      Sounding < 100 ~ Depth >= Sounding - 20,
+      Sounding >= 100 & Sounding < 500 ~ Depth >= Sounding - 50,
+      Sounding >= 500 ~ Depth >= Sounding - 200) &
+    Year > 1989 &
+    Month > 6 & Month < 11,
+  list(SampleID, StationID, Year, Month, Day, Hour, Minute, Longitude, 
+       Latitude, longitude_center, latitude_center, Sounding, SeaRegionID, 
+       ClusterID, DataSourceID, UTM_E, UTM_N, Depth, avgDepth, Temperature, Salinity, 
+       Oxygen, HydrogenSulphide)]
+
+
+# overlapping
+DO_samples_summer %>% 
+  inner_join(DO_samples_summer_old, by = c(SampleID = "SampleID")) %>% dim()
+#non-overlapping in new dataset
+# 901234
+1088779 - 901234 # 187545
+
+
+DO_samples_summer %>% 
+  anti_join(DO_samples_summer_old, by = c(SampleID = "SampleID")) %>% 
+  inner_join(DO_samples_summer, by = c(SampleID = "SampleID")) %>%
+  dim()
+# 340008 new datapoints added
+
+
+
+#==== diffplot ========================
+DO_samples_summer %>% anti_join(DO_samples_summer_old, by = c(SampleID = "SampleID")) %>% select(SampleID, Sounding, avgDepth, longitude_center, latitude_center) %>%
+  mutate(reason = case_when(
+    is.na(avgDepth) ~ "Emodnet depth missing",
+    is.na(Sounding) ~ "sounding missing",
+    !is.na(Sounding) & !is.na(avgDepth) ~ "different criteria"
+  )) %>% 
+  ggplot(aes(longitude_center, latitude_center)) + 
+  geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "darkgrey", color = "black") +
+  geom_point(aes(color = reason), size = 1) +
+  coord_quickmap(xlim = xxlim, ylim = yylim) +
+  ggtitle(paste("")) +
+  # scale_fill_gradientn(colours  = colorscale(7), guide = "colourbar", limits = limits) +
+  theme_bw() + 
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right",
+    axis.line = element_blank(),
+    axis.ticks = element_blank())
+
+#==== diffplot ========================
+DO_samples_summer %>% anti_join(DO_samples_summer_old, by = c(SampleID = "SampleID")) %>% 
+  select(SampleID, Year, Sounding, avgDepth, longitude_center, latitude_center) %>%
+  mutate(reason = case_when(
+    is.na(avgDepth) ~ "Emodnet depth missing",
+    is.na(Sounding) ~ "sounding missing",
+    !is.na(Sounding) & !is.na(avgDepth) ~ "different criteria"
+  )) %>% 
+  ggplot(aes(Year)) + 
+  geom_histogram(aes(fill = reason))
+
+
 
 # modified new depth (higher tolerance when avgDepth between 100 and 500 or > 500 m): 687867 records
 

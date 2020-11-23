@@ -105,3 +105,18 @@ stations3 %>%
   addCircleMarkers(radius = 0.1, label = ~paste(Year, avgDepth, Sounding))
   
 
+
+#=== oxygen data only =============
+
+load("C:/checkouts/OceanCSI/oceancsidata_oxygen.RData")
+
+stationSamples_oxy %>% 
+  distinct(StationID, Year, Month, Lon, Lat, SeaRegionID, avgDepth, Sounding) %>%
+  mutate(relDev = (avgDepth - Sounding) / Sounding) %>%
+  ggplot(aes(Sounding, Depth)) +
+  geom_point(aes(color = relDev))
+  
+
+
+
+
